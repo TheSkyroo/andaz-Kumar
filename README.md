@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next-Gen Learning Dashboard
 
-## Getting Started
+A high-fidelity student dashboard prototype built with Next.js App Router, Supabase, Tailwind CSS, and Framer Motion.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework**: Next.js 15 (App Router)
+- **Database**: Supabase (PostgreSQL)
+- **Styling**: Tailwind CSS v4
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+
+## Architecture
+
+### Server / Client Component Split
+
+Data fetching happens exclusively in **Server Components**:
+
+- `CoursesGrid` is an `async` Server Component that calls Supabase directly using `@supabase/ssr`'s `createServerClient`. No API route is needed — the query runs server-side before the HTML is streamed to the browser.
+- `CoursesGrid` is wrapped in a `<Suspense>` boundary in `page.tsx`, so Next.js streams the page shell immediately and fills in the courses section once the Supabase query resolves — showing `CourseSkeleton` in the meantime.
+
+All **interactivity and animations** live in Client Components (`"use client"`):
+
+- `Sidebar` — collapsible with spring-physics width animation and `layoutId`-based active highlight.
+- `CourseCardAnimated` — staggered entrance animation container.
+- `CourseCard` — hover spring-physics scale + glow, animated progress bar.
+- `ActivityTile`, `HeroTile`, `MobileNav` — entrance animations and hover states.
+
+### Zero Layout Shift Strategy
+
+All hover states use only `transform` (via Framer Motion's `scale`) and `opacity` / `box-shadow`. No width, height, margin, or padding changes are triggered on hover, preventing any layout repaints.
+
+### Graceful Error Handling
+
+If the Supabase connection fails, `CoursesGrid` catches the error and falls back to hardcoded demo data, displaying a "Using demo data" badge. The user always sees a complete, functional dashboard.
+
+## Supabase Setup
+
+1. Create a free project at [supabase.com](https://supabase.com).
+2. Run the SQL in `supabase/seed.sql` in the Supabase SQL Editor.
+3. Copy your Project URL and `anon` key from **Settings → API**.
+4. Add them to `.env.local` (see `.env.example`).
+
+## Running Locally
 
 ```bash
+npm install
+cp .env.example .env.local
+# Fill in your Supabase credentials in .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment (Vercel)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Push to a public GitHub repository.
+2. Import the repo in [Vercel](https://vercel.com).
+3. Add the two environment variables in Vercel's project settings.
+4. Deploy.
 
-## Learn More
+## Challenges
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Lucide dynamic imports**: Lucide exports every icon as a named export. To dynamically render an icon from a string stored in the database, the component imports the entire namespace (`import * as LucideIcons from "lucide-react"`) and looks up the icon by name at runtime.
+- **Tailwind v4 + CSS variables**: Tailwind v4 moves config into CSS. Custom gradients and grain textures are defined as plain CSS classes in `globals.css` rather than arbitrary Tailwind values, keeping the markup clean.
+- **Stagger + Suspense**: Server Component fetches data → passes it as props to `CourseCardAnimated` (Client Component) → Client Component drives the stagger via Framer Motion's `variants` and `staggerChildren`.
